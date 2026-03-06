@@ -1,0 +1,63 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.5.0/schema.json",
+  "name": "rv_donut_pricing",
+  "position": { "x": 10, "y": 172, "width": 400, "height": 320 },
+  "visual": {
+    "visualType": "donutChart",
+    "query": {
+      "queryState": {
+        "Category": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": { "Entity": "v_FabricCostSplitByWorkspace" }
+                  },
+                  "Property": "PricingCategory"
+                }
+              },
+              "queryRef": "v_FabricCostSplitByWorkspace.PricingCategory",
+              "active": true
+            }
+          ]
+        },
+        "Y": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": { "Entity": "v_FabricCostSplitByWorkspace" }
+                  },
+                  "Property": "TotalCostWorkspace"
+                }
+              },
+              "queryRef": "Sum(v_FabricCostSplitByWorkspace.TotalCostWorkspace)",
+              "active": true
+            }
+          ]
+        }
+      }
+    },
+    "objects": {
+      "title": [
+        {
+          "properties": {
+            "text": {
+              "expr": {
+                "Literal": { "Value": "'Cost by Pricing Category'" }
+              }
+            },
+            "show": {
+              "expr": {
+                "Literal": { "Value": "true" }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "drillFilterOtherVisuals": true
+  }
+}

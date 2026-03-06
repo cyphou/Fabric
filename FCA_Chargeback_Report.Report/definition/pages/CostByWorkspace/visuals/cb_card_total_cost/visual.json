@@ -1,0 +1,47 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.5.0/schema.json",
+  "name": "cb_card_total_cost",
+  "position": { "x": 10, "y": 62, "width": 305, "height": 100 },
+  "visual": {
+    "visualType": "card",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": { "Entity": "v_FabricCostSplitByWorkspace" }
+                  },
+                  "Property": "TotalCostWorkspace"
+                }
+              },
+              "queryRef": "Sum(v_FabricCostSplitByWorkspace.TotalCostWorkspace)",
+              "active": true
+            }
+          ]
+        }
+      }
+    },
+    "objects": {
+      "title": [
+        {
+          "properties": {
+            "text": {
+              "expr": {
+                "Literal": { "Value": "'Total Chargeback Cost'" }
+              }
+            },
+            "show": {
+              "expr": {
+                "Literal": { "Value": "true" }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "drillFilterOtherVisuals": true
+  }
+}

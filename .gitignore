@@ -1,0 +1,12 @@
+# Power BI
+*.pbix
+*.pbit
+
+# OS
+Thumbs.db
+.DS_Store
+
+# IDE
+.vscode/
+*.swp
+*.swo

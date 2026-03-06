@@ -1,0 +1,79 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.5.0/schema.json",
+  "name": "co_stacked_bar",
+  "position": { "x": 10, "y": 62, "width": 750, "height": 350 },
+  "visual": {
+    "visualType": "clusteredBarChart",
+    "query": {
+      "queryState": {
+        "Category": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": { "Entity": "v_FabricCostSplitByWorkspace" }
+                  },
+                  "Property": "CapacityName"
+                }
+              },
+              "queryRef": "v_FabricCostSplitByWorkspace.CapacityName",
+              "active": true
+            }
+          ]
+        },
+        "Y": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": { "Entity": "v_FabricCostSplitByWorkspace" }
+                  },
+                  "Property": "TotalCostWorkspace"
+                }
+              },
+              "queryRef": "Sum(v_FabricCostSplitByWorkspace.TotalCostWorkspace)",
+              "active": true
+            }
+          ]
+        },
+        "Series": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": { "Entity": "v_FabricCostSplitByWorkspace" }
+                  },
+                  "Property": "CostCategory"
+                }
+              },
+              "queryRef": "v_FabricCostSplitByWorkspace.CostCategory",
+              "active": true
+            }
+          ]
+        }
+      }
+    },
+    "objects": {
+      "title": [
+        {
+          "properties": {
+            "text": {
+              "expr": {
+                "Literal": { "Value": "'Total Cost by Capacity — Allocated vs Even Split'" }
+              }
+            },
+            "show": {
+              "expr": {
+                "Literal": { "Value": "true" }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "drillFilterOtherVisuals": true
+  }
+}
