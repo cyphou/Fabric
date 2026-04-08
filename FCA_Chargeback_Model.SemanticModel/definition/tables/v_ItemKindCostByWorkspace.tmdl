@@ -1,0 +1,96 @@
+/// v_ItemKindCostByWorkspace — Cost broken down by Fabric item kind
+/// (Notebook, Warehouse, Lakehouse, Pipeline, Dataflow, etc.)
+table v_ItemKindCostByWorkspace
+	lineageTag: a1b2c3d4-0003-0003-0003-000000000001
+
+	partition v_ItemKindCostByWorkspace-Partition = m
+		mode: directQuery
+		source =
+			let
+				Source = FCA_SQL_Endpoint,
+				Data = Source{[Schema="dbo", Item="v_ItemKindCostByWorkspace"]}[Data]
+			in
+				Data
+
+	column CapacityId
+		dataType: string
+		lineageTag: a1b2c3d4-0003-0003-0003-000000000002
+		summarizeBy: none
+		sourceColumn: CapacityId
+
+	column CapacityName
+		dataType: string
+		lineageTag: a1b2c3d4-0003-0003-0003-000000000003
+		summarizeBy: none
+		sourceColumn: CapacityName
+
+	column WorkspaceId
+		dataType: string
+		lineageTag: a1b2c3d4-0003-0003-0003-000000000004
+		summarizeBy: none
+		sourceColumn: WorkspaceId
+
+	column WorkspaceName
+		dataType: string
+		lineageTag: a1b2c3d4-0003-0003-0003-000000000005
+		summarizeBy: none
+		sourceColumn: WorkspaceName
+
+	column ItemKind
+		dataType: string
+		lineageTag: a1b2c3d4-0003-0003-0003-000000000006
+		summarizeBy: none
+		sourceColumn: ItemKind
+
+	column ChargePeriod
+		dataType: dateTime
+		formatString: Short Date
+		lineageTag: a1b2c3d4-0003-0003-0003-000000000007
+		summarizeBy: none
+		sourceColumn: ChargePeriod
+		annotation UnderlyingDateTimeDataType = Date
+
+	column PricingCategory
+		dataType: string
+		lineageTag: a1b2c3d4-0003-0003-0003-000000000008
+		summarizeBy: none
+		sourceColumn: PricingCategory
+
+	column TotalCostCapacity
+		dataType: decimal
+		formatString: \$#,0.00;(\$#,0.00);\$#,0.00
+		lineageTag: a1b2c3d4-0003-0003-0003-000000000009
+		summarizeBy: sum
+		sourceColumn: TotalCostCapacity
+		annotation PBI_FormatHint = {"currencyCulture":"en-US"}
+
+	column TotalCostItemKind
+		dataType: decimal
+		formatString: \$#,0.00;(\$#,0.00);\$#,0.00
+		lineageTag: a1b2c3d4-0003-0003-0003-00000000000a
+		summarizeBy: sum
+		sourceColumn: TotalCostItemKind
+		annotation PBI_FormatHint = {"currencyCulture":"en-US"}
+
+	column ItemKindCUSharePercent
+		dataType: decimal
+		formatString: 0.0%;-0.0%;0.0%
+		lineageTag: a1b2c3d4-0003-0003-0003-00000000000b
+		summarizeBy: average
+		sourceColumn: ItemKindCUSharePercent
+
+	measure 'Cost by Item Kind' = SUM([TotalCostItemKind])
+		formatString: \$#,0.00;(\$#,0.00);\$#,0.00
+		lineageTag: a1b2c3d4-0003-meas-0003-000000000001
+		annotation PBI_FormatHint = {"currencyCulture":"en-US"}
+
+	measure '# Item Kinds' = DISTINCTCOUNT([ItemKind])
+		formatString: #,0
+		lineageTag: a1b2c3d4-0003-meas-0003-000000000002
+
+	measure 'Top Item Kind' =
+			CALCULATE(
+			    FIRSTNONBLANK([ItemKind], 1),
+			    TOPN(1, VALUES('v_ItemKindCostByWorkspace'[ItemKind]), [Cost by Item Kind], DESC)
+			)
+		lineageTag: a1b2c3d4-0003-meas-0003-000000000003

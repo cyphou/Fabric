@@ -1,0 +1,130 @@
+/// v_FabricCostSplitByWorkspace — Primary chargeback output.
+/// One row per workspace per capacity per day.
+/// Supports on-demand and reserved (RI) pricing.
+table v_FabricCostSplitByWorkspace
+	lineageTag: a1b2c3d4-0001-0001-0001-000000000001
+
+	partition v_FabricCostSplitByWorkspace-Partition = m
+		mode: directQuery
+		source =
+			let
+				Source = FCA_SQL_Endpoint,
+				Data = Source{[Schema="dbo", Item="v_FabricCostSplitByWorkspace"]}[Data]
+			in
+				Data
+
+	column CapacityId
+		dataType: string
+		lineageTag: a1b2c3d4-0001-0001-0001-000000000002
+		summarizeBy: none
+		sourceColumn: CapacityId
+		annotation SummarizationSetBy = Automatic
+
+	column CapacityName
+		dataType: string
+		lineageTag: a1b2c3d4-0001-0001-0001-000000000003
+		summarizeBy: none
+		sourceColumn: CapacityName
+		annotation SummarizationSetBy = Automatic
+
+	column WorkspaceId
+		dataType: string
+		lineageTag: a1b2c3d4-0001-0001-0001-000000000004
+		summarizeBy: none
+		sourceColumn: WorkspaceId
+		annotation SummarizationSetBy = Automatic
+
+	column WorkspaceName
+		dataType: string
+		lineageTag: a1b2c3d4-0001-0001-0001-000000000005
+		summarizeBy: none
+		sourceColumn: WorkspaceName
+		annotation SummarizationSetBy = Automatic
+
+	column ChargePeriod
+		dataType: dateTime
+		formatString: Short Date
+		lineageTag: a1b2c3d4-0001-0001-0001-000000000006
+		summarizeBy: none
+		sourceColumn: ChargePeriod
+		annotation SummarizationSetBy = Automatic
+		annotation UnderlyingDateTimeDataType = Date
+
+	column PricingCategory
+		dataType: string
+		lineageTag: a1b2c3d4-0001-0001-0001-000000000007
+		summarizeBy: none
+		sourceColumn: PricingCategory
+		annotation SummarizationSetBy = Automatic
+
+	column CostCategory
+		dataType: string
+		lineageTag: a1b2c3d4-0001-0001-0001-000000000008
+		summarizeBy: none
+		sourceColumn: CostCategory
+		annotation SummarizationSetBy = Automatic
+
+	column TotalCostCapacity
+		dataType: decimal
+		formatString: \$#,0.00;(\$#,0.00);\$#,0.00
+		lineageTag: a1b2c3d4-0001-0001-0001-000000000009
+		summarizeBy: sum
+		sourceColumn: TotalCostCapacity
+		annotation SummarizationSetBy = Automatic
+		annotation PBI_FormatHint = {"currencyCulture":"en-US"}
+
+	column TotalCostWorkspace
+		dataType: decimal
+		formatString: \$#,0.00;(\$#,0.00);\$#,0.00
+		lineageTag: a1b2c3d4-0001-0001-0001-00000000000a
+		summarizeBy: sum
+		sourceColumn: TotalCostWorkspace
+		annotation SummarizationSetBy = Automatic
+		annotation PBI_FormatHint = {"currencyCulture":"en-US"}
+
+	column ReservationSavingsWorkspace
+		dataType: decimal
+		formatString: \$#,0.00;(\$#,0.00);\$#,0.00
+		lineageTag: a1b2c3d4-0001-0001-0001-00000000000b
+		summarizeBy: sum
+		sourceColumn: ReservationSavingsWorkspace
+		annotation SummarizationSetBy = Automatic
+		annotation PBI_FormatHint = {"currencyCulture":"en-US"}
+
+	column CUSharePercent
+		dataType: decimal
+		formatString: 0.0%;-0.0%;0.0%
+		lineageTag: a1b2c3d4-0001-0001-0001-00000000000c
+		summarizeBy: average
+		sourceColumn: CUSharePercent
+		annotation SummarizationSetBy = Automatic
+
+	measure 'Total Chargeback' = SUM([TotalCostWorkspace])
+		formatString: \$#,0.00;(\$#,0.00);\$#,0.00
+		lineageTag: a1b2c3d4-0001-meas-0001-000000000001
+		annotation PBI_FormatHint = {"currencyCulture":"en-US"}
+
+	measure 'Total Reservation Savings' = SUM([ReservationSavingsWorkspace])
+		formatString: \$#,0.00;(\$#,0.00);\$#,0.00
+		lineageTag: a1b2c3d4-0001-meas-0001-000000000002
+		annotation PBI_FormatHint = {"currencyCulture":"en-US"}
+
+	measure '# Workspaces' = DISTINCTCOUNT([WorkspaceId])
+		formatString: #,0
+		lineageTag: a1b2c3d4-0001-meas-0001-000000000003
+
+	measure '# Capacities' = DISTINCTCOUNT([CapacityId])
+		formatString: #,0
+		lineageTag: a1b2c3d4-0001-meas-0001-000000000004
+
+	measure 'Even Split Rows %' =
+			DIVIDE(
+			    COUNTROWS(FILTER('v_FabricCostSplitByWorkspace', [CostCategory] = "Even Split (No Consumption)")),
+			    COUNTROWS('v_FabricCostSplitByWorkspace')
+			)
+		formatString: 0.0%;-0.0%;0.0%
+		lineageTag: a1b2c3d4-0001-meas-0001-000000000005
+
+	measure 'Latest Charge Date' = MAX([ChargePeriod])
+		formatString: Short Date
+		lineageTag: a1b2c3d4-0001-meas-0001-000000000006

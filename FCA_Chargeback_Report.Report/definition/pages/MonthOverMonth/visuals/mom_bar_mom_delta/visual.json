@@ -1,0 +1,75 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.5.0/schema.json",
+  "name": "mom_bar_mom_delta",
+  "position": { "x": 300, "y": 370, "width": 970, "height": 340 },
+  "visual": {
+    "visualType": "clusteredBarChart",
+    "query": {
+      "queryState": {
+        "Category": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": { "Entity": "v_ChargebackMonthly" }
+                  },
+                  "Property": "WorkspaceName"
+                }
+              },
+              "queryRef": "v_ChargebackMonthly.WorkspaceName",
+              "active": true
+            }
+          ]
+        },
+        "Y": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": { "Entity": "v_ChargebackMonthly" }
+                  },
+                  "Property": "TotalCostWorkspace"
+                }
+              },
+              "queryRef": "Sum(v_ChargebackMonthly.TotalCostWorkspace)",
+              "active": true
+            }
+          ]
+        },
+        "Series": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": { "Entity": "v_ChargebackMonthly" }
+                  },
+                  "Property": "BillingMonth"
+                }
+              },
+              "queryRef": "v_ChargebackMonthly.BillingMonth",
+              "active": true
+            }
+          ]
+        }
+      }
+    },
+    "objects": {
+      "title": [
+        {
+          "properties": {
+            "text": {
+              "expr": { "Literal": { "Value": "'Monthly Cost by Workspace (Month-over-Month Comparison)'" } }
+            },
+            "show": {
+              "expr": { "Literal": { "Value": "true" } }
+            }
+          }
+        }
+      ]
+    },
+    "drillFilterOtherVisuals": true
+  }
+}

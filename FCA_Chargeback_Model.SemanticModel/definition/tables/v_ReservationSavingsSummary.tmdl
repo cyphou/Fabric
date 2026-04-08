@@ -1,0 +1,97 @@
+/// v_ReservationSavingsSummary — Reservation ROI per capacity per billing period.
+/// Use for justifying reservation purchases and tracking savings %.
+table v_ReservationSavingsSummary
+	lineageTag: a1b2c3d4-0002-0002-0002-000000000001
+
+	partition v_ReservationSavingsSummary-Partition = m
+		mode: directQuery
+		source =
+			let
+				Source = FCA_SQL_Endpoint,
+				Data = Source{[Schema="dbo", Item="v_ReservationSavingsSummary"]}[Data]
+			in
+				Data
+
+	column CapacityId
+		dataType: string
+		lineageTag: a1b2c3d4-0002-0002-0002-000000000002
+		summarizeBy: none
+		sourceColumn: CapacityId
+
+	column CapacityName
+		dataType: string
+		lineageTag: a1b2c3d4-0002-0002-0002-000000000003
+		summarizeBy: none
+		sourceColumn: CapacityName
+
+	column BillingPeriodStart
+		dataType: dateTime
+		formatString: Short Date
+		lineageTag: a1b2c3d4-0002-0002-0002-000000000004
+		summarizeBy: none
+		sourceColumn: BillingPeriodStart
+		annotation UnderlyingDateTimeDataType = Date
+
+	column PricingCategory
+		dataType: string
+		lineageTag: a1b2c3d4-0002-0002-0002-000000000005
+		summarizeBy: none
+		sourceColumn: PricingCategory
+
+	column TotalEffectiveCost
+		dataType: decimal
+		formatString: \$#,0.00;(\$#,0.00);\$#,0.00
+		lineageTag: a1b2c3d4-0002-0002-0002-000000000006
+		summarizeBy: sum
+		sourceColumn: TotalEffectiveCost
+		annotation PBI_FormatHint = {"currencyCulture":"en-US"}
+
+	column TotalBilledCost
+		dataType: decimal
+		formatString: \$#,0.00;(\$#,0.00);\$#,0.00
+		lineageTag: a1b2c3d4-0002-0002-0002-000000000007
+		summarizeBy: sum
+		sourceColumn: TotalBilledCost
+		annotation PBI_FormatHint = {"currencyCulture":"en-US"}
+
+	column TotalListCost
+		dataType: decimal
+		formatString: \$#,0.00;(\$#,0.00);\$#,0.00
+		lineageTag: a1b2c3d4-0002-0002-0002-000000000008
+		summarizeBy: sum
+		sourceColumn: TotalListCost
+		annotation PBI_FormatHint = {"currencyCulture":"en-US"}
+
+	column TotalSavings
+		dataType: decimal
+		formatString: \$#,0.00;(\$#,0.00);\$#,0.00
+		lineageTag: a1b2c3d4-0002-0002-0002-000000000009
+		summarizeBy: sum
+		sourceColumn: TotalSavings
+		annotation PBI_FormatHint = {"currencyCulture":"en-US"}
+
+	column SavingsPercent
+		dataType: decimal
+		formatString: 0.0%;-0.0%;0.0%
+		lineageTag: a1b2c3d4-0002-0002-0002-00000000000a
+		summarizeBy: average
+		sourceColumn: SavingsPercent
+
+	measure 'Effective Cost (RI)' = CALCULATE(SUM([TotalEffectiveCost]), [PricingCategory] = "Commitment-Based")
+		formatString: \$#,0.00;(\$#,0.00);\$#,0.00
+		lineageTag: a1b2c3d4-0002-meas-0002-000000000001
+		annotation PBI_FormatHint = {"currencyCulture":"en-US"}
+
+	measure 'On-Demand Equivalent' = SUM([TotalListCost])
+		formatString: \$#,0.00;(\$#,0.00);\$#,0.00
+		lineageTag: a1b2c3d4-0002-meas-0002-000000000002
+		annotation PBI_FormatHint = {"currencyCulture":"en-US"}
+
+	measure 'Total RI Savings' = SUM([TotalSavings])
+		formatString: \$#,0.00;(\$#,0.00);\$#,0.00
+		lineageTag: a1b2c3d4-0002-meas-0002-000000000003
+		annotation PBI_FormatHint = {"currencyCulture":"en-US"}
+
+	measure 'Avg Savings %' = AVERAGE([SavingsPercent])
+		formatString: 0.0%;-0.0%;0.0%
+		lineageTag: a1b2c3d4-0002-meas-0002-000000000004

@@ -1,0 +1,37 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.5.0/schema.json",
+  "name": "dept_card_savings",
+  "position": { "x": 325, "y": 62, "width": 305, "height": 100 },
+  "visual": {
+    "visualType": "card",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": { "SourceRef": { "Entity": "v_ChargebackByDepartment" } },
+                  "Property": "ReservationSavingsWorkspace"
+                }
+              },
+              "queryRef": "Sum(v_ChargebackByDepartment.ReservationSavingsWorkspace)",
+              "active": true
+            }
+          ]
+        }
+      }
+    },
+    "objects": {
+      "title": [
+        {
+          "properties": {
+            "text": { "expr": { "Literal": { "Value": "'Total RI Savings'" } } },
+            "show": { "expr": { "Literal": { "Value": "true" } } }
+          }
+        }
+      ]
+    },
+    "drillFilterOtherVisuals": true
+  }
+}

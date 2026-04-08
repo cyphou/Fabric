@@ -1,0 +1,43 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.5.0/schema.json",
+  "name": "mom_card_total_cost",
+  "position": { "x": 10, "y": 62, "width": 280, "height": 100 },
+  "visual": {
+    "visualType": "card",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": { "Entity": "v_ChargebackMonthly" }
+                  },
+                  "Property": "TotalCostWorkspace"
+                }
+              },
+              "queryRef": "Sum(v_ChargebackMonthly.TotalCostWorkspace)",
+              "active": true
+            }
+          ]
+        }
+      }
+    },
+    "objects": {
+      "title": [
+        {
+          "properties": {
+            "text": {
+              "expr": { "Literal": { "Value": "'Total Monthly Cost'" } }
+            },
+            "show": {
+              "expr": { "Literal": { "Value": "true" } }
+            }
+          }
+        }
+      ]
+    },
+    "drillFilterOtherVisuals": true
+  }
+}

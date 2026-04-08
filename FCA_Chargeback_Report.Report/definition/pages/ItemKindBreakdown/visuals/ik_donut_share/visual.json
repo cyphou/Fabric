@@ -1,0 +1,51 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.5.0/schema.json",
+  "name": "ik_donut_share",
+  "position": { "x": 640, "y": 62, "width": 630, "height": 100 },
+  "visual": {
+    "visualType": "donutChart",
+    "query": {
+      "queryState": {
+        "Category": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": { "SourceRef": { "Entity": "v_ItemKindCostByWorkspace" } },
+                  "Property": "ItemKind"
+                }
+              },
+              "queryRef": "v_ItemKindCostByWorkspace.ItemKind",
+              "active": true
+            }
+          ]
+        },
+        "Y": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": { "SourceRef": { "Entity": "v_ItemKindCostByWorkspace" } },
+                  "Property": "TotalCostItemKind"
+                }
+              },
+              "queryRef": "Sum(v_ItemKindCostByWorkspace.TotalCostItemKind)",
+              "active": true
+            }
+          ]
+        }
+      }
+    },
+    "objects": {
+      "title": [
+        {
+          "properties": {
+            "text": { "expr": { "Literal": { "Value": "'Cost Share by Item Kind'" } } },
+            "show": { "expr": { "Literal": { "Value": "true" } } }
+          }
+        }
+      ]
+    },
+    "drillFilterOtherVisuals": true
+  }
+}

@@ -5,7 +5,10 @@
     "CapacityOverview",
     "ReservedVsOnDemand",
     "ReservationROI",
-    "CostTrend"
+    "CostTrend",
+    "ItemKindBreakdown",
+    "DepartmentChargeback",
+    "MonthOverMonth"
   ],
   "activePageName": "CostByWorkspace"
 }

@@ -1,0 +1,186 @@
+{
+  "name": "FCA_Chargeback_Pipeline",
+  "objectType": "Pipeline",
+  "properties": {
+    "description": "Orchestrates the FUAM↔FCA Bridge: (re)creates SQL views via notebook, exports chargeback data to Delta tables for downstream consumption, and validates row counts.",
+    "activities": [
+
+      {
+        "name": "Run_Chargeback_Notebook",
+        "description": "Runs FCA_Chargeback_Addon_FUAM notebook to (re)create all 7 SQL views in the FCA Lakehouse SQL endpoint.",
+        "type": "TridentNotebook",
+        "dependsOn": [],
+        "typeProperties": {
+          "notebookId": "<REPLACE_WITH_NOTEBOOK_ITEM_ID>",
+          "workspaceId": "<REPLACE_WITH_FCA_WORKSPACE_ID>",
+          "parameters": {}
+        },
+        "policy": {
+          "timeout": "0.01:00:00",
+          "retry": 1,
+          "retryIntervalInSeconds": 60
+        }
+      },
+
+      {
+        "name": "Export_Chargeback_Daily",
+        "description": "Copies v_FabricCostSplitByWorkspace to Delta table 'chargeback_export_daily' for downstream finance system consumption.",
+        "type": "Copy",
+        "dependsOn": [
+          { "activity": "Run_Chargeback_Notebook", "dependencyConditions": ["Succeeded"] }
+        ],
+        "typeProperties": {
+          "source": {
+            "type": "SqlSource",
+            "sqlReaderQuery": "SELECT * FROM [dbo].[v_FabricCostSplitByWorkspace]",
+            "queryTimeout": "02:00:00"
+          },
+          "sink": {
+            "type": "LakehouseTableSink",
+            "tableActionOption": "OverwriteSchema",
+            "partitionOption": "None"
+          },
+          "enableStaging": false,
+          "translator": {
+            "type": "TabularTranslator",
+            "typeConversion": true
+          }
+        },
+        "inputs": [
+          {
+            "referenceName": "FCA_SqlEndpoint_Dataset",
+            "type": "DatasetReference"
+          }
+        ],
+        "outputs": [
+          {
+            "referenceName": "FCA_Lakehouse_chargebackexportdaily",
+            "type": "DatasetReference"
+          }
+        ]
+      },
+
+      {
+        "name": "Export_ReservationROI",
+        "description": "Copies v_ReservationSavingsSummary to Delta table 'reservation_roi_export'.",
+        "type": "Copy",
+        "dependsOn": [
+          { "activity": "Run_Chargeback_Notebook", "dependencyConditions": ["Succeeded"] }
+        ],
+        "typeProperties": {
+          "source": {
+            "type": "SqlSource",
+            "sqlReaderQuery": "SELECT * FROM [dbo].[v_ReservationSavingsSummary]",
+            "queryTimeout": "02:00:00"
+          },
+          "sink": {
+            "type": "LakehouseTableSink",
+            "tableActionOption": "OverwriteSchema",
+            "partitionOption": "None"
+          },
+          "enableStaging": false
+        },
+        "inputs": [
+          {
+            "referenceName": "FCA_SqlEndpoint_Dataset",
+            "type": "DatasetReference"
+          }
+        ],
+        "outputs": [
+          {
+            "referenceName": "FCA_Lakehouse_reservationroiexport",
+            "type": "DatasetReference"
+          }
+        ]
+      },
+
+      {
+        "name": "Export_DeptChargeback",
+        "description": "Copies v_ChargebackByDepartment to Delta table 'dept_chargeback_export' for per-department cost centre reporting.",
+        "type": "Copy",
+        "dependsOn": [
+          { "activity": "Run_Chargeback_Notebook", "dependencyConditions": ["Succeeded"] }
+        ],
+        "typeProperties": {
+          "source": {
+            "type": "SqlSource",
+            "sqlReaderQuery": "SELECT * FROM [dbo].[v_ChargebackByDepartment]",
+            "queryTimeout": "02:00:00"
+          },
+          "sink": {
+            "type": "LakehouseTableSink",
+            "tableActionOption": "OverwriteSchema",
+            "partitionOption": "None"
+          },
+          "enableStaging": false
+        },
+        "inputs": [
+          {
+            "referenceName": "FCA_SqlEndpoint_Dataset",
+            "type": "DatasetReference"
+          }
+        ],
+        "outputs": [
+          {
+            "referenceName": "FCA_Lakehouse_deptchargebackexport",
+            "type": "DatasetReference"
+          }
+        ]
+      },
+
+      {
+        "name": "Validate_RowCounts",
+        "description": "Verifies that v_FabricCostSplitByWorkspace has rows matching the expected billing data range. Fails the pipeline if count is 0.",
+        "type": "Lookup",
+        "dependsOn": [
+          { "activity": "Export_Chargeback_Daily",  "dependencyConditions": ["Succeeded"] },
+          { "activity": "Export_ReservationROI",    "dependencyConditions": ["Succeeded"] },
+          { "activity": "Export_DeptChargeback",    "dependencyConditions": ["Succeeded"] }
+        ],
+        "typeProperties": {
+          "source": {
+            "type": "SqlSource",
+            "sqlReaderQuery": "SELECT COUNT(*) AS ChargebackRows, MAX(ChargePeriod) AS LatestDay FROM [dbo].[v_FabricCostSplitByWorkspace]"
+          },
+          "dataset": {
+            "referenceName": "FCA_SqlEndpoint_Dataset",
+            "type": "DatasetReference"
+          },
+          "firstRowOnly": true
+        }
+      },
+
+      {
+        "name": "Fail_If_No_Data",
+        "description": "Fails the pipeline explicitly if the chargeback view returned 0 rows, indicating a data issue upstream.",
+        "type": "IfCondition",
+        "dependsOn": [
+          { "activity": "Validate_RowCounts", "dependencyConditions": ["Succeeded"] }
+        ],
+        "typeProperties": {
+          "expression": {
+            "value": "@equals(activity('Validate_RowCounts').output.firstRow.ChargebackRows, 0)",
+            "type": "Expression"
+          },
+          "ifTrueActivities": [
+            {
+              "name": "Throw_EmptyData",
+              "type": "Fail",
+              "typeProperties": {
+                "message": "v_FabricCostSplitByWorkspace returned 0 rows. Verify FCA billing data and FUAM shortcuts are populated.",
+                "errorCode": "CHARGEBACK_EMPTY"
+              }
+            }
+          ]
+        }
+      }
+
+    ],
+
+    "annotations": [
+      "FUAM_FCA_Bridge",
+      "Chargeback",
+      "FinOps"
+    ]
+  }
+}

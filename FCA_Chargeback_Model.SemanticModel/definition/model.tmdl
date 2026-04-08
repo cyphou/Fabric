@@ -1,0 +1,7 @@
+model Model
+	culture: en-US
+	description: >
+		DirectQuery semantic model for the FUAM↔FCA Chargeback Bridge.
+		Connects to the FCA Lakehouse SQL analytics endpoint.
+		Replace the data source connection string with your actual FCA SQL endpoint before publishing.
+	annotation PBI_QueryOrder = ["v_FabricCostSplitByWorkspace", "v_ReservationSavingsSummary", "v_ItemKindCostByWorkspace", "v_ChargebackByDepartment", "v_WorkspaceCapacityChanges", "dept_workspace_mapping"]

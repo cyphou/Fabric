@@ -1,0 +1,87 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.5.0/schema.json",
+  "name": "ik_table_detail",
+  "position": { "x": 640, "y": 172, "width": 630, "height": 340 },
+  "visual": {
+    "visualType": "tableEx",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": { "SourceRef": { "Entity": "v_ItemKindCostByWorkspace" } },
+                  "Property": "CapacityName"
+                }
+              },
+              "queryRef": "v_ItemKindCostByWorkspace.CapacityName",
+              "active": true
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": { "SourceRef": { "Entity": "v_ItemKindCostByWorkspace" } },
+                  "Property": "WorkspaceName"
+                }
+              },
+              "queryRef": "v_ItemKindCostByWorkspace.WorkspaceName",
+              "active": true
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": { "SourceRef": { "Entity": "v_ItemKindCostByWorkspace" } },
+                  "Property": "ItemKind"
+                }
+              },
+              "queryRef": "v_ItemKindCostByWorkspace.ItemKind",
+              "active": true
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": { "SourceRef": { "Entity": "v_ItemKindCostByWorkspace" } },
+                  "Property": "ChargePeriod"
+                }
+              },
+              "queryRef": "v_ItemKindCostByWorkspace.ChargePeriod",
+              "active": true
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": { "SourceRef": { "Entity": "v_ItemKindCostByWorkspace" } },
+                  "Property": "TotalCostItemKind"
+                }
+              },
+              "queryRef": "Sum(v_ItemKindCostByWorkspace.TotalCostItemKind)",
+              "active": true
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": { "SourceRef": { "Entity": "v_ItemKindCostByWorkspace" } },
+                  "Property": "ItemKindCUSharePercent"
+                }
+              },
+              "queryRef": "Sum(v_ItemKindCostByWorkspace.ItemKindCUSharePercent)",
+              "active": true
+            }
+          ]
+        }
+      }
+    },
+    "objects": {
+      "title": [
+        {
+          "properties": {
+            "text": { "expr": { "Literal": { "Value": "'Item Kind Cost Detail'" } } },
+            "show": { "expr": { "Literal": { "Value": "true" } } }
+          }
+        }
+      ]
+    },
+    "drillFilterOtherVisuals": true
+  }
+}

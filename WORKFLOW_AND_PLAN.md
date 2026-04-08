@@ -202,6 +202,56 @@ Connect a Power BI report to the **FCA SQL analytics endpoint** using DirectLake
 
 ---
 
+## Roadmap
+
+### Phase 1 — Foundation ✅ (done)
+Core bridge: shortcuts, SQL views, notebook deployment, Power BI report.
+
+| # | Item | Status |
+|---|------|--------|
+| 1.1 | 3 OneLake shortcuts (FUAM → FCA Lakehouse) | ✅ Done |
+| 1.2 | `v_CapacityCostPeriod` — daily amortized cost per capacity | ✅ Done |
+| 1.3 | `v_WorkspacesCUConsumption` — CU share % (F + P SKUs, div-by-zero safe) | ✅ Done |
+| 1.4 | `v_FabricCostSplitByWorkspace` — chargeback with even-split fallback | ✅ Done |
+| 1.5 | `v_ReservationSavingsSummary` — RI ROI per billing period | ✅ Done |
+| 1.6 | Power BI report: 5 pages (Cost by Workspace, Capacity Overview, Reserved vs On-Demand, Reservation ROI, Cost Trend) | ✅ Done |
+| 1.7 | Notebook (sempy-labs) for automated deployment of shortcuts + views | ✅ Done |
+
+---
+
+### Phase 2 — Cost Attribution Enhancements ✅ (done)
+
+| # | Item | Status |
+|---|------|--------|
+| 2.1 | **Department / Cost Center mapping** — `dept_mapping.sql` + `v_ChargebackByDepartment` view | ✅ Done |
+| 2.2 | **User-level attribution** | ⏳ Blocked — requires FUAM per-user CU exposure |
+| 2.3 | **Unused reservation detection** — `v_UnusedReservationHours` view | ✅ Done |
+| 2.4 | **Workspace capacity migration handling** — `v_WorkspaceCapacityChanges` detects multi-capacity workspaces using CU metrics data | ✅ Done |
+
+---
+
+### Phase 3 — FinOps & Governance ✅ (done)
+
+| # | Item | Status |
+|---|------|--------|
+| 3.1 | **Budget alerts** — daily per-workspace threshold check in notebook validation cell | ✅ Done |
+| 3.2 | **Chargeback export** — `FCA_Chargeback_Pipeline` exports 3 views to Delta tables (`chargeback_export_daily`, `reservation_roi_export`, `dept_chargeback_export`) | ✅ Done |
+| 3.3 | **Multi-tenant support** — environment parameter block in notebook | ✅ Done |
+| 3.4 | **Governance page in report** — `DepartmentChargeback` page added to PBI report | ✅ Done |
+
+---
+
+### Phase 4 — Automation & Scale ✅ (done)
+
+| # | Item | Status |
+|---|------|--------|
+| 4.1 | **Fabric Pipeline deployment** — `FCA_Chargeback_Pipeline.DataPipeline/` with 5 activities (notebook → 3× copy export → validate) | ✅ Done |
+| 4.2 | **Incremental validation** — 5-check validation cell in notebook (row counts, missing days, budget alerts, dept coverage) | ✅ Done |
+| 4.3 | **DirectLake semantic model** — `FCA_Chargeback_Model.SemanticModel/` TMDL with 5 tables, pre-built measures, relationship stubs | ✅ Done |
+| 4.4 | **Item-kind cost breakdown** — `v_ItemKindCostByWorkspace` view + `ItemKindBreakdown` report page | ✅ Done |
+
+---
+
 ## References
 
 - [Fabric Unified Admin Monitoring (FUAM)](https://learn.microsoft.com/fabric/admin/monitoring/)

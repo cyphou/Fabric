@@ -1,0 +1,23 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.5.0/schema.json",
+  "name": "ik_title_01",
+  "position": { "x": 10, "y": 5, "width": 1260, "height": 50 },
+  "visual": {
+    "visualType": "textbox",
+    "objects": {
+      "general": [
+        {
+          "properties": {
+            "paragraphs": {
+              "expr": {
+                "Literal": {
+                  "Value": "[{\"textRuns\":[{\"value\":\"Fabric Chargeback — Cost by Item Kind\",\"textStyle\":{\"fontFamily\":\"Segoe UI Semibold\",\"fontSize\":\"20px\"}}]}]"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

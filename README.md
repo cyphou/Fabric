@@ -2,15 +2,16 @@
 
 ## Overview
 
-This solution allocates Microsoft Fabric capacity costs (from **FCA**) to individual workspaces based on actual CU consumption (from **FUAM**). It uses **OneLake shortcuts + SQL views + a Power BI report** — no notebooks, no Python, no scheduled pipelines.
+This solution allocates Microsoft Fabric capacity costs (from **FCA**) to individual workspaces based on actual CU consumption (from **FUAM**). It uses **OneLake shortcuts + SQL views + a Power BI report** — no orchestration required by default, with an optional Fabric Pipeline for automated exports.
 
-Supports **on-demand (PAYG)** and **reserved capacity (RI)** pricing.
+Supports **on-demand (PAYG)** and **reserved capacity (RI/Commitment-Based)** pricing.
 
 | Component | Role |
 |-----------|------|
 | **FUAM** (Fabric Unified Admin Monitoring) | Capacity metrics, workspace metadata, per-workspace CU consumption |
 | **FCA** (Fabric Cost Analysis) | Azure billing data in FOCUS format (costs, resources, billing periods) |
-| **Bridge** | 3 OneLake shortcuts + 4 SQL views + 1 Power BI report (PBIR) |
+| **Bridge** | 3 OneLake shortcuts + 8 SQL views + 1 Power BI report (PBIR, 7 pages) |
+| **Optional** | Notebook (automated deployment), Fabric Pipeline (exports), Semantic Model (TMDL) |
 
 ---
 
@@ -19,203 +20,155 @@ Supports **on-demand (PAYG)** and **reserved capacity (RI)** pricing.
 ```
 ┌──────────────────────────┐       ┌──────────────────────────┐
 │       FUAM Lakehouse     │       │       FCA Lakehouse      │
-│                          │       │                          │
 │  Tables:                 │       │  Tables:                 │
 │  • capacities            │       │  • focus_fabric          │
 │  • workspaces            │       │  • resources             │
-│  • capacity_metrics_     │       │                          │
-│    by_item_kind_by_day   │       │                          │
+│  • capacity_metrics_     │       │  • dept_workspace_mapping│
+│    by_item_kind_by_day   │       │    (reference — manual)  │
 └────────────┬─────────────┘       └──────────┬───────────────┘
-             │ OneLake Shortcuts              │ Native tables
-             │ (created once in UI)           │
+             │ OneLake Shortcuts (3)          │ Native tables
              ▼                                ▼
-     ┌───────────────────────────────────────────────────┐
-     │            FCA Lakehouse                          │
-     │                                                   │
-     │  Shortcuts (read-only, live):                     │
-     │   FUAM_capacities                                 │
-     │   FUAM_workspaces                                 │
-     │   FUAM_capacity_metrics_by_item_kind_by_day       │
-     │                                                   │
-     │  SQL Views (created once via SQL endpoint):       │
-     │   v_CapacityCostPeriod ──┐                        │
-     │   v_WorkspacesCUConsumption ──┤                   │
-     │                              ▼                    │
-     │   v_FabricCostSplitByWorkspace (FINAL)            │
-     │   v_ReservationSavingsSummary (RI analysis)       │
-     │                                                   │
-     └───────────────────┬──────────────┬────────────────┘
-                         │              │
-            DirectLake / SQL endpoint   │ XMLA live connection
-                         │              │
-                         ▼              ▼
-     ┌───────────────────────────────────────────────────┐
-     │      FCA_Chargeback_Report (Power BI — PBIR)     │
-     │                                                   │
-     │  Page 1: Cost by Workspace (main chargeback)      │
-     │  Page 2: Capacity Overview                        │
-     │  Page 3: Reserved vs On-Demand                    │
-     │  Page 4: Reservation ROI                          │
-     │  Page 5: Cost Trend                               │
-     └───────────────────────────────────────────────────┘
+     ┌───────────────────────────────────────────────────────────┐
+     │            FCA Lakehouse SQL Analytics Endpoint           │
+     │                                                           │
+     │  Core views (always current — no refresh):                │
+     │   v_CapacityCostPeriod          (daily cost per capacity) │
+     │   v_WorkspacesCUConsumption     (CU share per workspace)  │
+     │   v_FabricCostSplitByWorkspace  ← PRIMARY OUTPUT          │
+     │   v_ReservationSavingsSummary   (RI ROI per period)       │
+     │                                                           │
+     │  Extended views:                                          │
+     │   v_UnusedReservationHours      (wasted RI spend)         │
+     │   v_ItemKindCostByWorkspace     (Notebook/WH/LH/Pipeline) │
+     │   v_ChargebackByDepartment      (Dept + CostCenter)       │
+     │   v_WorkspaceCapacityChanges    (migration detection)     │
+     └──────────────┬────────────────────────────┬──────────────┘
+                    │                            │
+          SQL endpoint (DirectQuery)             │ Export (optional)
+                    │                            ▼
+                    │              ┌─────────────────────────────┐
+                    │              │  FCA_Chargeback_Pipeline     │
+                    │              │  (Fabric Data Pipeline)      │
+                    │              │  → chargeback_export_daily   │
+                    │              │  → reservation_roi_export    │
+                    │              │  → dept_chargeback_export    │
+                    │              └─────────────────────────────┘
+                    ▼
+     ┌───────────────────────────────────────────────────────────┐
+     │      FCA_Chargeback_Report (Power BI — PBIR, 7 pages)    │
+     │  OR  FCA_Chargeback_Model  (Semantic Model — TMDL)        │
+     └───────────────────────────────────────────────────────────┘
 ```
 
 ---
 
 ## Prerequisites
 
-Before deploying, confirm the following are in place:
-
 | # | Prerequisite | How to verify |
 |---|-------------|---------------|
-| 1 | **FUAM Lakehouse** is deployed and populated | Open FUAM workspace → Lakehouse → verify `capacities`, `workspaces`, `capacity_metrics_by_item_kind_by_day` tables have data |
-| 2 | **FCA Lakehouse** is deployed and populated | Open FCA workspace → Lakehouse → verify `focus_fabric` and `resources` tables have data |
-| 3 | **SQL analytics endpoint** enabled on FCA Lakehouse | In FCA Lakehouse, click the SQL analytics endpoint dropdown — it should be accessible |
-| 4 | **Power BI Desktop** (June 2024 or later) | Required for opening the `.pbip` report file; PBIR v4.0 format requires recent builds |
-| 5 | **Permissions** | Read access to FUAM Lakehouse tables; Read + Write access to FCA Lakehouse + SQL endpoint |
+| 1 | **FUAM Lakehouse** deployed and populated | Workspace → Lakehouse → verify `capacities`, `workspaces`, `capacity_metrics_by_item_kind_by_day` have data |
+| 2 | **FCA Lakehouse** deployed and populated | Workspace → Lakehouse → verify `focus_fabric` and `resources` have data |
+| 3 | **SQL analytics endpoint** on FCA Lakehouse | FCA Lakehouse → SQL analytics endpoint dropdown is accessible |
+| 4 | **Power BI Desktop** (June 2024+) | Required for PBIR v4.0 format |
+| 5 | **Permissions** | Read on FUAM; Read+Write on FCA Lakehouse + SQL endpoint |
 
 ---
 
 ## Deployment Guide
 
-### Step 1: Create OneLake Shortcuts (one-time)
+### Option A — Manual (5 minutes, no dependencies)
 
-Open the **FCA Lakehouse** in Fabric → **Get data** → **New shortcut** → **Microsoft OneLake**.
+**Step 1: Create OneLake Shortcuts** (one-time, in FCA Lakehouse UI)
 
-Create these 3 shortcuts:
+FCA Lakehouse → **Get data** → **New shortcut** → **Microsoft OneLake**
 
-| # | Source (FUAM Lakehouse) | Shortcut Name in FCA | Target Path |
-|---|------------------------|---------------------|-------------|
-| 1 | `capacities` table | `FUAM_capacities` | Tables/dbo |
-| 2 | `workspaces` table | `FUAM_workspaces` | Tables/dbo |
-| 3 | `capacity_metrics_by_item_kind_by_day` table | `FUAM_capacity_metrics_by_item_kind_by_day` | Tables/dbo |
+| # | Source (FUAM Lakehouse) | Shortcut Name in FCA |
+|---|------------------------|---------------------|
+| 1 | `capacities` | `FUAM_capacities` |
+| 2 | `workspaces` | `FUAM_workspaces` |
+| 3 | `capacity_metrics_by_item_kind_by_day` | `FUAM_capacity_metrics_by_item_kind_by_day` |
 
-> **Tip**: Browse to FUAM workspace → FUAM Lakehouse → Tables → select the table. Name it with the `FUAM_` prefix.
-
-**Validation**: After creating shortcuts, open the FCA Lakehouse SQL analytics endpoint and run:
+**Validation:**
 ```sql
 SELECT TOP 5 * FROM [dbo].[FUAM_capacities];
 SELECT TOP 5 * FROM [dbo].[FUAM_workspaces];
 SELECT TOP 5 * FROM [dbo].[FUAM_capacity_metrics_by_item_kind_by_day];
 ```
-All three queries must return data.
 
-### Step 2: Create SQL Views (one-time)
+**Step 2: Create SQL Views** (one-time, in FCA SQL analytics endpoint)
 
-1. Open the **FCA Lakehouse SQL analytics endpoint**
-2. Click **New SQL query**
-3. Paste the full contents of `chargeback_views.sql`
-4. Click **Run**
+1. Open FCA Lakehouse → SQL analytics endpoint → **New SQL query**
+2. Paste `chargeback_views.sql` → **Run**
+3. Optionally paste `dept_mapping.sql` → **Run** (for department attribution)
 
-The 4 views are created immediately. No refresh or scheduling needed.
-
-**Validation**: Run the following and verify results:
+**Validation:**
 ```sql
 SELECT TOP 10 * FROM [dbo].[v_FabricCostSplitByWorkspace]
 ORDER BY ChargePeriod DESC, TotalCostWorkspace DESC;
 ```
 
-### Step 3: Configure the Power BI Report
+**Step 3: Configure the Power BI Report**
 
-The report is provided in **PBIR format** (folder-based). Before opening it in Power BI Desktop, you must update the connection settings.
+1. Open `FCA_Chargeback_Report.Report/definition.pbir` and replace the 3 placeholders:
 
-1. Open `FCA_Chargeback_Report.Report/definition.pbir` in a text editor
-2. Replace the 3 placeholders with your actual FCA Lakehouse values:
+| Placeholder | Value to use | Where to find it |
+|-------------|-------------|------------------|
+| `<YOUR_FCA_SQL_ENDPOINT>` | FCA SQL endpoint URL | FCA Lakehouse → Settings → SQL endpoint → connection string |
+| `<YOUR_FCA_LAKEHOUSE>` | FCA Lakehouse display name | e.g. `FCA_Lakehouse` |
+| `<YOUR_FCA_LAKEHOUSE_GUID>` | FCA Lakehouse item ID | FCA Lakehouse → Settings → About → Lakehouse ID |
 
-| Placeholder | Replace with | Where to find it |
-|-------------|-------------|-------------------|
-| `<YOUR_FCA_SQL_ENDPOINT>` | FCA SQL analytics endpoint URL | FCA Lakehouse → Settings → SQL analytics endpoint → copy the connection string |
-| `<YOUR_FCA_LAKEHOUSE>` | FCA Lakehouse name | The display name of your FCA Lakehouse (e.g., `FCA_Lakehouse`) |
-| `<YOUR_FCA_LAKEHOUSE_GUID>` | FCA Lakehouse GUID | FCA Lakehouse → Settings → About → copy the Lakehouse ID |
-
-Example of a configured `definition.pbir`:
-```json
-{
-  "version": "4.0",
-  "datasetReference": {
-    "byPath": null,
-    "byConnection": {
-      "connectionString": "Data Source=x]x]x]x]xxxx.datawarehouse.fabric.microsoft.com;Initial Catalog=FCA_Lakehouse",
-      "pbiServiceModelId": null,
-      "pbiModelVirtualServerName": "sobe_wowvirtualserver",
-      "pbiModelDatabaseName": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-      "name": "EntityDataSource",
-      "connectionType": "pbiServiceXmlaStyleLive"
-    }
-  }
-}
-```
-
-3. Open `FCA_Chargeback_Report.pbip` in **Power BI Desktop**
-4. When prompted, sign in with your Fabric credentials
-5. The report connects live to the FCA SQL analytics endpoint — no import or refresh needed
-
-### Step 4: Publish to Fabric (optional)
-
-1. In Power BI Desktop, click **Publish**
-2. Select the target workspace (e.g., the FCA workspace)
-3. The report is now available in the Fabric portal for all authorized users
+2. Open `FCA_Chargeback_Report.pbip` in Power BI Desktop → sign in → report connects live (no import/refresh)
 
 ---
 
-## Benefits
+### Option B — Automated Notebook (recommended for first setup)
 
-| Benefit | Detail |
-|---------|--------|
-| **No code** | No notebook, no Python, no `semantic-link-labs` dependency |
-| **No scheduling** | Shortcuts are live pointers — data is always current |
-| **No refresh** | SQL views compute on read — always up to date |
-| **Reusable** | Same SQL script works on any tenant — create shortcuts + run SQL |
-| **Portable** | One `.sql` file + one `.pbip` project to version control and share |
-| **5-minute setup** | 3 shortcuts + paste SQL + update 3 placeholders |
+Run `FCA_Chargeback_Addon_FUAM.ipynb` in Fabric:
+
+1. Edit the **Parameters** cell: set `source_lakehouse`, `source_workspace`, `destination_lakehouse`, `destination_workspace`
+2. Optionally set `BUDGET_ALERT_DAILY_USD` for cost threshold alerts
+3. Run all cells — shortcuts + all 7 views are created automatically
+4. The final **Validation** cell previews results and runs 5 health checks
+
+---
+
+### Option C — Fabric Pipeline (scheduled / automated exports)
+
+Import `FCA_Chargeback_Pipeline.DataPipeline/` into your FCA workspace:
+
+1. In Fabric: **+ New** → **Import** → upload the `.DataPipeline` folder
+2. Edit `pipeline-content.json` to replace `<REPLACE_WITH_NOTEBOOK_ITEM_ID>` and `<REPLACE_WITH_FCA_WORKSPACE_ID>`
+3. Schedule the pipeline (e.g. daily after FCA billing refresh)
+
+The pipeline runs the notebook, exports 3 views to Delta tables, and validates row counts.
+
+---
+
+### Department Attribution (optional)
+
+1. Run `dept_mapping.sql` in the FCA SQL endpoint to create the `dept_workspace_mapping` table
+2. Populate it with your `WorkspaceId → Department / CostCenter / Owner` mappings
+3. The `v_ChargebackByDepartment` view will automatically join and expose the enriched data
+4. Use the **Cost by Department** report page for cost centre reporting
 
 ---
 
 ## SQL Views Reference
 
-### `v_CapacityCostPeriod`
-Joins FCA billing data with FUAM capacity metadata to get **daily cost per capacity**.
-
-```
-focus_fabric (costs) → resources (Azure resource name) → FUAM_capacities (capacity ID)
-```
-
-**Reserved capacity handling** — uses `EffectiveCost` (amortized) instead of `BilledCost`:
-- **On-demand**: `EffectiveCost` = `BilledCost` (no difference)
-- **Reserved**: `EffectiveCost` = daily amortized portion of the reservation purchase
-- Exposes `ListCost` (on-demand list price) to calculate reservation savings
-- Groups by `PricingCategory` (`On-Demand` vs `Commitment-Based`)
-
-### `v_WorkspacesCUConsumption`
-Calculates each workspace's **share of CU consumption** within its capacity per day.
-
-```
-WorkspaceCU% = WorkspaceCUs / SUM(AllWorkspaceCUs) per capacity per day
-```
-
-- Supports **F SKUs** (paid Fabric) and **P SKUs** (Power BI Premium)
-- Excludes Trial SKUs (`FT*`)
-- Handles division by zero (0 CU → 0%)
-
-### `v_FabricCostSplitByWorkspace` *(primary output)*
-Multiplies capacity cost by workspace CU share → **chargeback amount**.
-
-```
-TotalCostWorkspace      = TotalCostCapacity × WorkspaceCU%
-ReservationSavings      = (ListCost - EffectiveCost) × WorkspaceCU%
-```
-
-- **Allocated** rows: cost proportioned by actual workspace consumption
-- **Even Split** rows: when no CU consumption exists for a day, cost is divided evenly across all workspaces on that capacity
-- `PricingCategory`: distinguishes `On-Demand` vs `Commitment-Based` (reserved)
-- `ReservationSavingsWorkspace`: per-workspace savings from reservations
-
-### `v_ReservationSavingsSummary`
-Aggregated view for **reservation ROI analysis** per capacity per billing period.
-
-- Compares `EffectiveCost` (what you pay) vs `ListCost` (what you'd pay on-demand)
-- Shows `SavingsPercent` to justify reservation purchases
-- Used by the **Reservation ROI** report page
+| View | Phase | Purpose |
+|------|-------|---------|
+| `v_CapacityCostPeriod` | Core | Daily amortized cost per capacity (EffectiveCost + ListCost, PricingCategory) |
+| `v_WorkspacesCUConsumption` | Core | CU share % per workspace per day (F + P SKUs, div-by-zero safe) |
+| `v_FabricCostSplitByWorkspace` | Core — **PRIMARY OUTPUT** | Chargeback = cost × CU% per workspace; fallback to even split |
+| `v_ReservationSavingsSummary` | Core | RI ROI: EffectiveCost vs ListCost per capacity per billing period |
+| `v_UnusedReservationHours` | Extended | Wasted reservation hours where no workload ran (`CommitmentDiscountStatus = 'Unused'`) |
+| `v_ItemKindCostByWorkspace` | Extended | Cost split by Fabric item kind (Notebook, Warehouse, Lakehouse, Pipeline…) |
+| `v_ChargebackByDepartment` | Extended | Workspace chargeback enriched with Department, CostCenter, Owner |
+| `v_WorkspaceCapacityChanges` | Extended | Detects workspaces that moved between capacities within a billing period |
+| `v_ChargebackMonthly` | Analytics | Monthly rollup of workspace chargeback — base for MoM trend reports |
+| `v_IdleCapacityWorkspaces` | Analytics | Workspaces attached to a capacity with zero CU consumption (idle cost allocation) |
+| `v_CostEfficiency` | Analytics | Cost-per-CU-percent per workspace per month (lower = more efficient) |
+| `v_BudgetTracking` | Analytics | Actual vs budget variance by department per month (requires `dept_budget.sql`) |
 
 ---
 
@@ -225,7 +178,7 @@ Aggregated view for **reservation ROI analysis** per capacity per billing period
 |--------|------|-------------|
 | `CapacityId` | string | FUAM capacity identifier |
 | `CapacityName` | string | Azure resource name / FUAM display name |
-| `WorkspaceId` | string | FUAM workspace identifier (NULL for even-split rows) |
+| `WorkspaceId` | string | FUAM workspace identifier |
 | `WorkspaceName` | string | Workspace display name |
 | `ChargePeriod` | date | Day of the cost charge |
 | `PricingCategory` | string | `On-Demand` or `Commitment-Based` |
@@ -237,17 +190,18 @@ Aggregated view for **reservation ROI analysis** per capacity per billing period
 
 ---
 
-## Power BI Report — Pages & Visuals
+## Power BI Report — 8 Pages
 
-The `FCA_Chargeback_Report` is a 5-page PBIR report connected live to the FCA SQL analytics endpoint.
-
-| Page | Data Source View | Key Visuals |
-|------|-----------------|-------------|
-| **Cost by Workspace** | `v_FabricCostSplitByWorkspace` | KPI cards (total cost, savings, workspace count, capacity count), bar chart by workspace, detail table, slicers (capacity, date range, pricing category) |
-| **Capacity Overview** | `v_CapacityCostPeriod` | Stacked bar chart (cost by capacity with cost category), donut chart (allocated vs even split), capacity detail table |
-| **Reserved vs On-Demand** | `v_FabricCostSplitByWorkspace` | On-demand / reserved / savings KPI cards, donut by pricing category, savings by workspace bar chart, pricing detail table |
-| **Reservation ROI** | `v_ReservationSavingsSummary` | Effective cost / list cost / savings / savings % KPI cards, clustered column chart (effective vs list by capacity), summary table, capacity slicer |
-| **Cost Trend** | `v_FabricCostSplitByWorkspace` | Daily cost line chart by workspace, line chart by pricing category, line chart by capacity |
+| Page | View | Key Visuals |
+|------|------|-------------|
+| **Cost by Workspace** | `v_FabricCostSplitByWorkspace` | KPI cards, bar by workspace, detail table, capacity/date/pricing slicers |
+| **Capacity Overview** | `v_FabricCostSplitByWorkspace` | Stacked bar by capacity, donut (Allocated vs Even Split), capacity table |
+| **Reserved vs On-Demand** | `v_FabricCostSplitByWorkspace` | On-demand / reserved / savings KPIs, donut by pricing, savings bar |
+| **Reservation ROI** | `v_ReservationSavingsSummary` | EffectiveCost / ListCost / Savings / Savings% KPIs, clustered bar, summary table |
+| **Cost Trend** | `v_FabricCostSplitByWorkspace` | Daily line by workspace, by pricing category, by capacity |
+| **Cost by Item Kind** | `v_ItemKindCostByWorkspace` | Cost bar by item kind, donut share, detail table, workspace/date slicers |
+| **Cost by Department** | `v_ChargebackByDepartment` | Cost bar by department (with pricing series), donut share, detail table with Owner |
+| **Month-over-Month** | `v_ChargebackMonthly` | Monthly trend line by workspace, MoM clustered bar, total cost/savings KPI cards |
 
 ---
 
@@ -255,32 +209,46 @@ The `FCA_Chargeback_Report` is a 5-page PBIR report connected live to the FCA SQ
 
 ```
 FUAM_FCA_Bridge/
-├── README.md                                          ← This document
-├── chargeback_views.sql                               ← SQL views (run once in FCA SQL endpoint)
-├── FCA_Chargeback_Report.pbip                         ← Power BI project entry point
-└── FCA_Chargeback_Report.Report/                      ← PBIR report folder
-    ├── .platform                                      ← Fabric metadata (type, display name)
-    ├── definition.pbir                                ← Data source connection (update placeholders!)
+│
+├── README.md                                     ← This document
+├── WORKFLOW_AND_PLAN.md                          ← Detailed workflow, architecture, roadmap
+│
+├── chargeback_views.sql                          ← 12 SQL views (run once in FCA SQL endpoint)
+├── dept_mapping.sql                              ← dept_workspace_mapping DDL + sample data
+├── dept_budget.sql                               ← dept_budget DDL + sample data (budget tracking)
+├── FCA_Chargeback_Addon_FUAM.ipynb               ← Automated deployment notebook (sempy-labs)
+│
+├── FCA_Chargeback_Report.pbip                    ← Power BI project entry point
+└── FCA_Chargeback_Report.Report/                 ← PBIR report folder (8 pages)
+│   ├── definition.pbir                           ← Data source connection (update 3 placeholders)
+│   └── definition/
+│       └── pages/
+│           ├── CostByWorkspace/                  ← Page 1 (10 visuals)
+│           ├── CapacityOverview/                  ← Page 2 (4 visuals)
+│           ├── ReservedVsOnDemand/                ← Page 3 (7 visuals)
+│           ├── ReservationROI/                    ← Page 4 (8 visuals)
+│           ├── CostTrend/                         ← Page 5 (4 visuals)
+│           ├── ItemKindBreakdown/                 ← Page 6 (7 visuals)
+            ├── DepartmentChargeback/              ← Page 7 (7 visuals)
+            └── MonthOverMonth/                    ← Page 8 (6 visuals)
+│
+├── FCA_Chargeback_Pipeline.DataPipeline/         ← Fabric Data Pipeline (optional)
+│   ├── .platform                                 ← Fabric item metadata
+│   └── pipeline-content.json                     ← ADF-style pipeline: notebook → export → validate
+│
+└── FCA_Chargeback_Model.SemanticModel/           ← DirectQuery semantic model (optional)
+    ├── .platform                                 ← Fabric item metadata
     └── definition/
-        ├── report.json                                ← Report-level settings & theme
-        ├── version.json                               ← PBIR schema version
-        └── pages/
-            ├── pages.json                             ← Page ordering
-            ├── CostByWorkspace/                       ← Page 1 (10 visuals)
-            │   ├── page.json
-            │   └── visuals/
-            ├── CapacityOverview/                       ← Page 2 (4 visuals)
-            │   ├── page.json
-            │   └── visuals/
-            ├── ReservedVsOnDemand/                     ← Page 3 (7 visuals)
-            │   ├── page.json
-            │   └── visuals/
-            ├── ReservationROI/                         ← Page 4 (8 visuals)
-            │   ├── page.json
-            │   └── visuals/
-            └── CostTrend/                              ← Page 5 (4 visuals)
-                ├── page.json
-                └── visuals/
+        ├── model.tmdl                            ← Model-level settings
+        ├── relationships.tmdl                    ← Cross-table relationship definitions
+        ├── expressions.tmdl                      ← Shared FCA_SQL_Endpoint data source (single placeholder)
+        ├── cultures/en-US.tmdl
+        └── tables/
+            ├── v_FabricCostSplitByWorkspace.tmdl ← Fact + 6 measures
+            ├── v_ReservationSavingsSummary.tmdl  ← RI ROI + 4 measures
+            ├── v_ItemKindCostByWorkspace.tmdl    ← Item kind + 3 measures
+            ├── v_ChargebackByDepartment.tmdl     ← Dept chargeback + 4 measures
+            └── dept_workspace_mapping.tmdl       ← Dimension table
 ```
 
 ---
@@ -289,24 +257,15 @@ FUAM_FCA_Bridge/
 
 | Symptom | Cause | Fix |
 |---------|-------|-----|
-| SQL views fail to create | Shortcuts not yet created, or named differently | Verify shortcut names are exactly `FUAM_capacities`, `FUAM_workspaces`, `FUAM_capacity_metrics_by_item_kind_by_day` |
-| `v_FabricCostSplitByWorkspace` returns 0 rows | No overlapping date range between FCA billing data and FUAM metrics | Check `SELECT DISTINCT ChargePeriodStart FROM focus_fabric` vs `SELECT DISTINCT Date FROM FUAM_capacity_metrics_by_item_kind_by_day` — they must overlap |
-| `v_CapacityCostPeriod` returns 0 rows | `ResourceName` in FCA doesn't match `displayName` in FUAM | Run `SELECT DISTINCT ResourceName FROM resources` and `SELECT DISTINCT displayName FROM FUAM_capacities` — values must match |
-| Report shows "Unable to connect" in PBI Desktop | Placeholders not replaced in `definition.pbir` | Open `definition.pbir` and verify all 3 placeholders are replaced with actual values (see Step 3) |
-| Report shows no data but connection works | SQL views exist but return empty results | Run the validation query from Step 2; troubleshoot the SQL layer first |
-| Even Split rows dominate | Workspaces have no CU consumption for those days | Expected for idle days; filter on `CostCategory = 'Allocated'` to see only consumption-based rows |
-| Trial capacity (FT SKU) not shown | By design — trial SKUs are excluded | The `v_WorkspacesCUConsumption` view explicitly filters out `FT*` SKUs |
-
----
-
-## Known Limitations
-
-| # | Limitation | Mitigation |
-|---|-----------|------------|
-| 1 | **No user-level cost split** | Join with FUAM user activity tables for per-user allocation |
-| 2 | **No department / cost center mapping** | Add a reference table mapping `WorkspaceId → Department / CostCenter` and join in a new view |
-| 3 | **Workspace capacity migration** | A workspace moving between capacities mid-period may double-count on the migration day |
-| 4 | **Unused reservation hours** | FCA exposes `CommitmentDiscountStatus = 'Unused'` — a dedicated waste-analysis view could be added |
+| SQL views fail to create | Shortcuts not created or named differently | Verify names are exactly `FUAM_capacities`, `FUAM_workspaces`, `FUAM_capacity_metrics_by_item_kind_by_day` |
+| `v_FabricCostSplitByWorkspace` returns 0 rows | No overlapping date range between FCA billing and FUAM metrics | `SELECT DISTINCT ChargePeriodStart FROM focus_fabric` vs `SELECT DISTINCT Date FROM FUAM_capacity_metrics_by_item_kind_by_day` — must overlap |
+| `v_CapacityCostPeriod` returns 0 rows | `ResourceName` in FCA ≠ `displayName` in FUAM | `SELECT DISTINCT ResourceName FROM resources` vs `SELECT DISTINCT displayName FROM FUAM_capacities` — must match |
+| `v_UnusedReservationHours` returns 0 rows | `CommitmentDiscountStatus` column missing | FOCUS 1.0+ required; check with `SELECT TOP 1 CommitmentDiscountStatus FROM focus_fabric` |
+| Report shows "Unable to connect" | Placeholders not replaced in `definition.pbir` | Replace all 3 placeholders with actual FCA values (see Step 3) |
+| Even Split rows dominate | Workspaces have no CU consumption for those days | Expected for idle days; filter `CostCategory = 'Allocated'` for consumption-based rows only |
+| `v_ChargebackByDepartment` shows only 'Unassigned' | `dept_workspace_mapping` table is empty or not created | Run `dept_mapping.sql` and populate with actual WorkspaceId values from `FUAM_workspaces` |
+| Trial capacity not shown | By design | `FT*` SKUs are excluded in `v_WorkspacesCUConsumption` |
+| P SKU workspaces missing | SKU filter issue | `v_WorkspacesCUConsumption` supports `P1–P5` via `LIKE 'P%'` — verify SKU column in `FUAM_capacities` |
 
 ---
 
@@ -316,4 +275,8 @@ FUAM_FCA_Bridge/
 - [Fabric Cost Analysis (FCA)](https://learn.microsoft.com/fabric/governance/)
 - [FOCUS Cost Standard](https://focus.finops.org/)
 - [Power BI PBIR format](https://learn.microsoft.com/power-bi/developer/projects/projects-report)
-- [Original notebook](https://github.com/cyphou/Fabric)
+- [TMDL semantic model format](https://learn.microsoft.com/analysis-services/tmdl/tmdl-overview)
+- [Fabric Data Pipeline](https://learn.microsoft.com/fabric/data-factory/data-factory-overview)
+- [Original notebook inspiration](https://github.com/cyphou/Fabric)
+
+

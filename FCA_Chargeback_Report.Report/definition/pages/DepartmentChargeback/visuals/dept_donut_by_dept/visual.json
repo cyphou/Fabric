@@ -1,0 +1,51 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.5.0/schema.json",
+  "name": "dept_donut_by_dept",
+  "position": { "x": 640, "y": 62, "width": 630, "height": 100 },
+  "visual": {
+    "visualType": "donutChart",
+    "query": {
+      "queryState": {
+        "Category": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": { "SourceRef": { "Entity": "v_ChargebackByDepartment" } },
+                  "Property": "Department"
+                }
+              },
+              "queryRef": "v_ChargebackByDepartment.Department",
+              "active": true
+            }
+          ]
+        },
+        "Y": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": { "SourceRef": { "Entity": "v_ChargebackByDepartment" } },
+                  "Property": "TotalCostWorkspace"
+                }
+              },
+              "queryRef": "Sum(v_ChargebackByDepartment.TotalCostWorkspace)",
+              "active": true
+            }
+          ]
+        }
+      }
+    },
+    "objects": {
+      "title": [
+        {
+          "properties": {
+            "text": { "expr": { "Literal": { "Value": "'Cost Share by Department'" } } },
+            "show": { "expr": { "Literal": { "Value": "true" } } }
+          }
+        }
+      ]
+    },
+    "drillFilterOtherVisuals": true
+  }
+}

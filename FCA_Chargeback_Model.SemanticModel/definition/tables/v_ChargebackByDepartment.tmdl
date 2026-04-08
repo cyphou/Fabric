@@ -1,0 +1,126 @@
+/// v_ChargebackByDepartment — Chargeback enriched with dept_workspace_mapping reference table.
+/// Workspaces without a mapping row appear as Department = 'Unassigned'.
+table v_ChargebackByDepartment
+	lineageTag: a1b2c3d4-0004-0004-0004-000000000001
+
+	partition v_ChargebackByDepartment-Partition = m
+		mode: directQuery
+		source =
+			let
+				Source = FCA_SQL_Endpoint,
+				Data = Source{[Schema="dbo", Item="v_ChargebackByDepartment"]}[Data]
+			in
+				Data
+
+	column CapacityId
+		dataType: string
+		lineageTag: a1b2c3d4-0004-0004-0004-000000000002
+		summarizeBy: none
+		sourceColumn: CapacityId
+
+	column CapacityName
+		dataType: string
+		lineageTag: a1b2c3d4-0004-0004-0004-000000000003
+		summarizeBy: none
+		sourceColumn: CapacityName
+
+	column WorkspaceId
+		dataType: string
+		lineageTag: a1b2c3d4-0004-0004-0004-000000000004
+		summarizeBy: none
+		sourceColumn: WorkspaceId
+
+	column WorkspaceName
+		dataType: string
+		lineageTag: a1b2c3d4-0004-0004-0004-000000000005
+		summarizeBy: none
+		sourceColumn: WorkspaceName
+
+	column Department
+		dataType: string
+		lineageTag: a1b2c3d4-0004-0004-0004-000000000006
+		summarizeBy: none
+		sourceColumn: Department
+
+	column CostCenter
+		dataType: string
+		lineageTag: a1b2c3d4-0004-0004-0004-000000000007
+		summarizeBy: none
+		sourceColumn: CostCenter
+
+	column Owner
+		dataType: string
+		lineageTag: a1b2c3d4-0004-0004-0004-000000000008
+		summarizeBy: none
+		sourceColumn: Owner
+
+	column ChargePeriod
+		dataType: dateTime
+		formatString: Short Date
+		lineageTag: a1b2c3d4-0004-0004-0004-000000000009
+		summarizeBy: none
+		sourceColumn: ChargePeriod
+		annotation UnderlyingDateTimeDataType = Date
+
+	column PricingCategory
+		dataType: string
+		lineageTag: a1b2c3d4-0004-0004-0004-00000000000a
+		summarizeBy: none
+		sourceColumn: PricingCategory
+
+	column CostCategory
+		dataType: string
+		lineageTag: a1b2c3d4-0004-0004-0004-00000000000b
+		summarizeBy: none
+		sourceColumn: CostCategory
+
+	column TotalCostCapacity
+		dataType: decimal
+		formatString: \$#,0.00;(\$#,0.00);\$#,0.00
+		lineageTag: a1b2c3d4-0004-0004-0004-00000000000c
+		summarizeBy: sum
+		sourceColumn: TotalCostCapacity
+		annotation PBI_FormatHint = {"currencyCulture":"en-US"}
+
+	column TotalCostWorkspace
+		dataType: decimal
+		formatString: \$#,0.00;(\$#,0.00);\$#,0.00
+		lineageTag: a1b2c3d4-0004-0004-0004-00000000000d
+		summarizeBy: sum
+		sourceColumn: TotalCostWorkspace
+		annotation PBI_FormatHint = {"currencyCulture":"en-US"}
+
+	column ReservationSavingsWorkspace
+		dataType: decimal
+		formatString: \$#,0.00;(\$#,0.00);\$#,0.00
+		lineageTag: a1b2c3d4-0004-0004-0004-00000000000e
+		summarizeBy: sum
+		sourceColumn: ReservationSavingsWorkspace
+		annotation PBI_FormatHint = {"currencyCulture":"en-US"}
+
+	column CUSharePercent
+		dataType: decimal
+		formatString: 0.0%;-0.0%;0.0%
+		lineageTag: a1b2c3d4-0004-0004-0004-00000000000f
+		summarizeBy: average
+		sourceColumn: CUSharePercent
+
+	measure 'Dept Total Cost' = SUM([TotalCostWorkspace])
+		formatString: \$#,0.00;(\$#,0.00);\$#,0.00
+		lineageTag: a1b2c3d4-0004-meas-0004-000000000001
+		annotation PBI_FormatHint = {"currencyCulture":"en-US"}
+
+	measure 'Dept Total Savings' = SUM([ReservationSavingsWorkspace])
+		formatString: \$#,0.00;(\$#,0.00);\$#,0.00
+		lineageTag: a1b2c3d4-0004-meas-0004-000000000002
+		annotation PBI_FormatHint = {"currencyCulture":"en-US"}
+
+	measure '# Departments' = DISTINCTCOUNT([Department])
+		formatString: #,0
+		lineageTag: a1b2c3d4-0004-meas-0004-000000000003
+
+	measure 'Unassigned Cost' =
+			CALCULATE(SUM([TotalCostWorkspace]), [Department] = "Unassigned")
+		formatString: \$#,0.00;(\$#,0.00);\$#,0.00
+		lineageTag: a1b2c3d4-0004-meas-0004-000000000004
+		annotation PBI_FormatHint = {"currencyCulture":"en-US"}

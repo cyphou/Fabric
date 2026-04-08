@@ -1,0 +1,59 @@
+/// dept_workspace_mapping — Reference/dimension table.
+/// Maps workspace IDs to Department, CostCenter, and Owner.
+/// Populated via dept_mapping.sql. Workspaces not listed appear as 'Unassigned' in v_ChargebackByDepartment.
+table dept_workspace_mapping
+	lineageTag: a1b2c3d4-0005-0005-0005-000000000001
+
+	partition dept_workspace_mapping-Partition = m
+		mode: directQuery
+		source =
+			let
+				Source = FCA_SQL_Endpoint,
+				Data = Source{[Schema="dbo", Item="dept_workspace_mapping"]}[Data]
+			in
+				Data
+
+	column WorkspaceId
+		dataType: string
+		lineageTag: a1b2c3d4-0005-0005-0005-000000000002
+		summarizeBy: none
+		sourceColumn: WorkspaceId
+		isKey: true
+
+	column WorkspaceName
+		dataType: string
+		lineageTag: a1b2c3d4-0005-0005-0005-000000000003
+		summarizeBy: none
+		sourceColumn: WorkspaceName
+
+	column Department
+		dataType: string
+		lineageTag: a1b2c3d4-0005-0005-0005-000000000004
+		summarizeBy: none
+		sourceColumn: Department
+
+	column CostCenter
+		dataType: string
+		lineageTag: a1b2c3d4-0005-0005-0005-000000000005
+		summarizeBy: none
+		sourceColumn: CostCenter
+
+	column Owner
+		dataType: string
+		lineageTag: a1b2c3d4-0005-0005-0005-000000000006
+		summarizeBy: none
+		sourceColumn: Owner
+
+	column Notes
+		dataType: string
+		lineageTag: a1b2c3d4-0005-0005-0005-000000000007
+		summarizeBy: none
+		sourceColumn: Notes
+
+	column UpdatedAt
+		dataType: dateTime
+		formatString: Short Date
+		lineageTag: a1b2c3d4-0005-0005-0005-000000000008
+		summarizeBy: none
+		sourceColumn: UpdatedAt
+		annotation UnderlyingDateTimeDataType = Date

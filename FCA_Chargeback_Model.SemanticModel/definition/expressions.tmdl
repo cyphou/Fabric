@@ -1,0 +1,20 @@
+/// Shared data source for the FCA SQL Analytics Endpoint.
+/// Update BOTH placeholders before publishing to Fabric:
+///
+///   <REPLACE_WITH_FCA_SQL_ENDPOINT>  →  Your FCA lakehouse SQL endpoint hostname
+///         Example: abc12345-xxxx-xxxx-xxxx-xxxxxxxxxxxx.datawarehouse.fabric.microsoft.com
+///
+///   <REPLACE_WITH_FCA_LAKEHOUSE_NAME>  →  The name of your FCA lakehouse
+///         Example: FCA_Lakehouse or FUAM_FCA_Bridge
+///
+/// This expression is referenced by every table partition in this semantic model.
+/// Change the connection here once — all tables are updated automatically.
+
+expression FCA_SQL_Endpoint
+	lineageTag: f0a00000-cafe-cafe-cafe-000000000001
+	kind: m
+	expression = ```
+		Sql.Database("<REPLACE_WITH_FCA_SQL_ENDPOINT>", "<REPLACE_WITH_FCA_LAKEHOUSE_NAME>")
+		```
+	annotation PBI_NavigationStepName = Navigation
+	annotation PBI_ResultType = {"type":"table"}

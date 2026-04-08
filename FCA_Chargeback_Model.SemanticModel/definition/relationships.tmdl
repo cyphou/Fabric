@@ -1,0 +1,19 @@
+/// No cross-table relationships are defined because all views are already pre-joined
+/// and denormalized (each view is a standalone fact).
+///
+/// If you want cross-filtering between pages (e.g., clicking a department filters
+/// the item-kind visual), create relationships here:
+///
+///   v_ChargebackByDepartment.WorkspaceId → v_FabricCostSplitByWorkspace.WorkspaceId  (M:1)
+///   v_ItemKindCostByWorkspace.WorkspaceId → v_FabricCostSplitByWorkspace.WorkspaceId  (M:1)
+///   dept_workspace_mapping.WorkspaceId → v_FabricCostSplitByWorkspace.WorkspaceId  (1:M)
+///
+/// Uncomment the relationships below to enable cross-filtering:
+
+// relationship v_ChargebackByDepartment_to_Chargeback
+// 	fromColumn: v_ChargebackByDepartment.WorkspaceId
+// 	toColumn: v_FabricCostSplitByWorkspace.WorkspaceId
+
+// relationship v_ItemKindCostByWorkspace_to_Chargeback
+// 	fromColumn: v_ItemKindCostByWorkspace.WorkspaceId
+// 	toColumn: v_FabricCostSplitByWorkspace.WorkspaceId
