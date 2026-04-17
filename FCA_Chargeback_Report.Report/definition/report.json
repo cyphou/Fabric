@@ -27,7 +27,6 @@
   "settings": {
     "hideVisualContainerHeader": true,
     "useStylableVisualContainerHeader": true,
-    "exportDataMode": "All",
     "defaultDrillFilterOtherVisuals": true,
     "allowChangeFilterTypes": true,
     "useEnhancedTooltips": true

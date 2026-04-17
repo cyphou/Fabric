@@ -24,23 +24,6 @@
         }
       }
     },
-    "filters": [
-      {
-        "name": "FilterOnDemand",
-        "field": {
-          "Column": {
-            "Expression": {
-              "SourceRef": { "Entity": "v_FabricCostSplitByWorkspace" }
-            },
-            "Property": "PricingCategory"
-          }
-        },
-        "filter": {
-          "type": "Categorical",
-          "values": [{ "value": "On-Demand" }]
-        }
-      }
-    ],
     "objects": {
       "title": [
         {
